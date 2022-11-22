@@ -6,7 +6,7 @@ using namespace std;
 constexpr double PI = 3.14159265358979323846;
 
 typedef double (*functionPointer)(const vector<double>& values);
-typedef double (*fitness)(const double& value, int dimensions);
+typedef double (*fitness)(const double& value, unsigned dimensions);
 
 class Function
 {
@@ -27,13 +27,13 @@ public:
 };
 
 double deJongsFunction(const vector<double>& values);
-double deJongsFitness(const double& value, int dimensions);
+double deJongsFitness(const double& value, unsigned dimensions);
 double schwefelsFunction(const vector<double>& values);
-double schwefelsFitness(const double& value, int dimensions);
+double schwefelsFitness(const double& value, unsigned dimensions);
 double rastringsFunction(const vector<double>& values);
-double rastringsFitness(const double& value, int dimensions);
+double rastringsFitness(const double& value, unsigned dimensions);
 double michalewiczsFunction(const vector<double>& values);
-double michalewiczsFitness(const double& value, int dimensions);
+double michalewiczsFitness(const double& value, unsigned dimensions);
 
 
 double deJongsFunction(const vector<double>& values) {
@@ -44,7 +44,7 @@ double deJongsFunction(const vector<double>& values) {
 
 	return sum;
 }
-double deJongsFitness(const double& value, int dimensions) {
+double deJongsFitness(const double& value, unsigned dimensions) {
 	return 1/value;
 }
 double schwefelsFunction(const vector<double>& values) {
@@ -55,7 +55,7 @@ double schwefelsFunction(const vector<double>& values) {
 
 	return sum;
 }
-double schwefelsFitness(const double& value, int dimensions) {
+double schwefelsFitness(const double& value, unsigned dimensions) {
 	return	-(value - 420 * dimensions);
 }
 
@@ -69,7 +69,7 @@ double rastringsFunction(const vector<double>& values) {
 
 	return sum;
 }
-double rastringsFitness(const double& value, int dimensions) {
+double rastringsFitness(const double& value, unsigned dimensions) {
 	return 1 / value;
 }
 double michalewiczsFunction(const vector<double>& values) {
@@ -83,7 +83,7 @@ double michalewiczsFunction(const vector<double>& values) {
 
 	return sum;
 }
-double michalewiczsFitness(const double& value, int dimensions) {
+double michalewiczsFitness(const double& value, unsigned dimensions) {
 	return -(value - dimensions);
 }
 

@@ -133,6 +133,7 @@
     <ClInclude Include="functions.h" />
     <ClInclude Include="generators.h" />
     <ClInclude Include="geneticAlgorithm.h" />
+    <ClInclude Include="prelucrare.h" />
     <ClInclude Include="utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

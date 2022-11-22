@@ -1,25 +1,26 @@
 #pragma once
 #include <cfloat>
+#include <chrono>
+#include <fstream>
 #include <iomanip>
+#include <iostream>
+#include <string>
 
 #include "generators.h"
 #include "utils.h"
 
-#include <chrono>
-#include <string>
-#include <iostream>
-#include <fstream>
 
-double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions,
-	const Function& function, const string functionName, const int sample);
+
+double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
+	const Function& function, const string& functionName, const int sample);
 
 void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
-	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength, int dimensions);
+	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength);
 void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, mt19937& gen);
 
 
-double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions,
-	const Function& function, const string functionName, const int sample) {
+double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
+	const Function& function, const string& functionName, const int sample) {
 
 	auto start = chrono::system_clock::now();
 
@@ -28,19 +29,20 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 	const auto nodeLength = static_cast<unsigned>(ceil(log2(N)));
 	const double a = pow(2, nodeLength) - 1;
 	const double average = function.upperBound - function.lowerBound;
-	int L = nodeLength * dimensions;
+	unsigned L = nodeLength * dimensions;
 
 	uniform_real_distribution<double> random01(0, 1.0);
 	uniform_int_distribution<> randomGenerator(0, dimensions);
 	uniform_int_distribution<> randomBool(0, 1);
 
+
+	unsigned populationSize = startingPopulationSize;
 	vector<vector<bool>> startingPopulation(populationSize, vector<bool>(nodeLength * dimensions));
 
 
 	unsigned seed = chrono::system_clock::now().time_since_epoch().count() * sample;
-	mt19937 gen;
-	gen.seed(seed);
-	
+	mt19937 gen(seed);
+
 	for (unsigned i = 0; i < populationSize; i++) {
 		for (unsigned j = 0; j < L; j++) {
 			startingPopulation[i][j] = randomBool(gen);
@@ -54,18 +56,22 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 	unsigned t = 0;
 	unsigned generationsSinceLastImprovement = 0;
 	double averageSelectedChromosomes = 0;
+	double averagePopulationSize = 0;
 
 	const double chanceToMutate = 0.3 / nodeLength;
+	constexpr double chanceToCrossOver = 0.75;
 	double bestResult = DBL_MAX;
-	//int randomGenerator = rand() % dimensions;
-	
-	constexpr int averageChromosomesToBeSelected = 8;
+
+	//Very rough estimate
+	constexpr int averageChromosomesToBeSelected = 100;
 
 	while (t < maxGenerations) {
 		t++;
 		//cout << "Started generation " << t << '\n';
 
 		double totalFitness = 0;
+		populationSize = startingPopulation.size();
+		averagePopulationSize += populationSize;
 
 		for (unsigned i = 0; i < populationSize; i++) {
 			results[i] = evaluate(startingPopulation[i], nodeLength, function, a, average);
@@ -79,9 +85,9 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 		}
 		//cout << "TotalFitness " << totalFitness << '\n';
 		generationsSinceLastImprovement++;
-		if (generationsSinceLastImprovement > 250) {
+	/*	if (generationsSinceLastImprovement > 300) {
 			break;
-		}
+		}*/
 
 		vector<vector<bool>> selectedChromosomes;
 		vector<double> p(populationSize), q(populationSize + 1, 0);
@@ -91,12 +97,12 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 		for (int i = 0; i < rVector.size(); i++) {
 			rVector[i] = random01(gen);
 		}
+
 		//Individual sel.prob. + Accumulated sel.prob.
 		for (unsigned i = 0; i < populationSize; i++) {
 			p[i] = eval[i] / totalFitness;
 			q[i + 1] = q[i] + p[i];
 			//cout << "p[" << i << "]: " << p[i] << " q[" << i << "] " << q[i] << ' ';
-
 
 			for (int j = 0; j < rVector.size(); j++) {
 				if (q[i] < rVector[j] && rVector[j] <= q[i + 1]) {
@@ -121,27 +127,22 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 		startingPopulation.clear();
 		const unsigned numberOfSelectedChromosomes = selectedChromosomes.size();
 
-		for (unsigned i = 0; i < numberOfSelectedChromosomes - numberOfSelectedChromosomes % 2; i++) {
+		for (unsigned i = 0; i < numberOfSelectedChromosomes; i++) {
 			startingPopulation.push_back(selectedChromosomes[i]);
 			chromosomesAdded++;
 		}
-		while (chromosomesAdded < populationSize) {
-			for (unsigned i = 0; i < numberOfSelectedChromosomes - 1; i++) {
-				for (unsigned j = i + 1; j < numberOfSelectedChromosomes; j++) {
 
-					crossOver(startingPopulation, selectedChromosomes[i],
-						selectedChromosomes[j], randomGenerator, gen, nodeLength, dimensions);
-					mutate(startingPopulation[chromosomesAdded], chanceToMutate, random01, gen);
-					mutate(startingPopulation[chromosomesAdded + 1], chanceToMutate, random01, gen);
-					chromosomesAdded += 2;
-
-					if (chromosomesAdded == populationSize)
-						break;
-				}
-				if (chromosomesAdded == populationSize)
-					break;
+		for (unsigned i = 0; i < numberOfSelectedChromosomes - numberOfSelectedChromosomes % 2 - 1; i += 2) {
+			if (random01(gen) < chanceToCrossOver) {
+				crossOver(startingPopulation, selectedChromosomes[i],
+					selectedChromosomes[i + 1], randomGenerator, gen, nodeLength);
+				mutate(startingPopulation[chromosomesAdded], chanceToMutate, random01, gen);
+				mutate(startingPopulation[chromosomesAdded + 1], chanceToMutate, random01, gen);
+				chromosomesAdded += 2;
 			}
+
 		}
+
 
 		//cout << "\nBest Result: " <<fixed<<setprecision(5)<< bestResult<<'\n';
 
@@ -157,21 +158,15 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 
 	fout << /*"Best Result: " << */fixed << setprecision(5) << bestResult << '\n';
 	fout << /*"Average Selected " << */averageSelectedChromosomes / t << '\n';
+	fout << averagePopulationSize / t << '\n';
 	fout << /*"Ended at generation: " << */t << "\n";
 	fout << /*"Duration: " << */duration << '\n';
 
 	return bestResult;
 }
 
-
-/*double runAlgorithm2(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions, const Function& function)
-{
-	int t = 0;
-
-}*/
-
 void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
-	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength, int dimensions) {
+	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength) {
 
 	const unsigned cutPoint = distribution(gen) * nodeLength;
 	vector<bool> newChromosome1, newChromosome2;
@@ -189,7 +184,7 @@ void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chr
 
 }
 
-void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, mt19937& gen){
+void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, mt19937& gen) {
 	for (auto var : chromosome) {
 		if (distribution(gen) < chanceToMutate)
 			var = !var;
