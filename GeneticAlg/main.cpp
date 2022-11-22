@@ -12,7 +12,7 @@ int main() {
 
 	double averageTotal = 0;
 	for (int i = 1; i <= 30; i++) {
-		averageTotal+=runAlgorithm(2000, 100, 5, rastrigin, "rastrigin", i);
+		averageTotal+=runAlgorithm(2000, 50, 5, rastrigin, "rastrigin", i);
 	}
 
 	cout << averageTotal / 30;
