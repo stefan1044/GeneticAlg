@@ -5,9 +5,12 @@
 #include "generators.h"
 #include "utils.h"
 
+#include <chrono>
+#include <string>
+#include <iostream>
 
 double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions,
-                    const Function& function);
+                    const Function& function, const string functionName, const int sample);
 
 void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
 	uniform_int_distribution<>& distribution, const unsigned&
@@ -16,7 +19,9 @@ void mutate(vector<bool>& chromosome, const double& chanceToMutate);
 
 
 double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions,
-                    const Function& function) {
+                    const Function& function, const string functionName, const int sample) {
+
+	auto start = chrono::system_clock::now();
 
 	constexpr unsigned precision = 5;
 	const auto N = abs((function.lowerBound - function.upperBound) * pow(10, precision));
@@ -126,12 +131,27 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 		//cout << "\nBest Result: " <<fixed<<setprecision(5)<< bestResult<<'\n';
 
 	}
-	cout << "\nBest Result: " << fixed << setprecision(5) << bestResult << " Average Selected " << averageSelectedChromosomes / t << '\n';
+
+	auto end = chrono::system_clock::now();
+	auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
+
+	string path = functionName + "_" + to_string(dimensions) + '_' + to_string(sample);
+
+	cout << path << '\n';
+
+	cout << "Best Result: " << fixed << setprecision(5) << bestResult << " Average Selected " << averageSelectedChromosomes / t << '\n';
 	cout << "Ended at generation: " << t <<"\n";
+	cout << "Duration: " << duration << '\n' << '\n';
 
 	return bestResult;
 }
 
+
+/*double runAlgorithm2(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions, const Function& function)
+{
+	int t = 0;
+
+}*/
 
 void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
 	uniform_int_distribution<>& distribution, const unsigned& nodeLength) {
