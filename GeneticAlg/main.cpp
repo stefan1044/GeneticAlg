@@ -11,8 +11,8 @@ int main() {
 	const Function michalewicz(0, PI, michalewiczsFunction, michalewiczsFitness);
 
 	double averageTotal = 0;
-	for (int i = 0; i < 30; i++) {
-		averageTotal+=runAlgorithm(2000, 100, 30, rastrigin);
+	for (int i = 1; i <= 30; i++) {
+		averageTotal+=runAlgorithm(2000, 100, 5, rastrigin, "rastrigin", i);
 	}
 
 	cout << averageTotal / 30;
