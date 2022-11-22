@@ -8,6 +8,7 @@
 #include <chrono>
 #include <string>
 #include <iostream>
+#include <fstream>
 
 double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize, const unsigned dimensions,
 	const Function& function, const string functionName, const int sample);
@@ -72,7 +73,7 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 				bestResult = results[i];
 				generationsSinceLastImprovement = 0;
 			}
-			eval[i] = function.fitFunc(results[i]);
+			eval[i] = function.fitFunc(results[i], dimensions);
 			totalFitness += eval[i];
 			//cout <<"results["<<results[i]<<"] "<< "eval[" << i << "] " << eval[i] << ' ';
 		}
@@ -150,12 +151,14 @@ double runAlgorithm(const unsigned maxGenerations, const unsigned populationSize
 	auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
 	string path = functionName + "_" + to_string(dimensions) + '_' + to_string(sample);
+	ofstream fout(path);
 
 	cout << path << '\n';
 
-	cout << "Best Result: " << fixed << setprecision(5) << bestResult << " Average Selected " << averageSelectedChromosomes / t << '\n';
-	cout << "Ended at generation: " << t << "\n";
-	cout << "Duration: " << duration << '\n' << '\n';
+	fout << /*"Best Result: " << */fixed << setprecision(5) << bestResult << '\n';
+	fout << /*"Average Selected " << */averageSelectedChromosomes / t << '\n';
+	fout << /*"Ended at generation: " << */t << "\n";
+	fout << /*"Duration: " << */duration << '\n';
 
 	return bestResult;
 }
