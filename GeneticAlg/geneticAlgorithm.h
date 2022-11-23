@@ -1,6 +1,8 @@
 #pragma once
+#include <algorithm>
 #include <cfloat>
 #include <chrono>
+#include <deque>
 #include <fstream>
 #include <iomanip>
 #include <iostream>
@@ -10,6 +12,23 @@
 #include "utils.h"
 
 
+
+struct prob
+{
+	double probability;
+	unsigned position;
+
+};
+
+bool probComparison(const prob& a, const prob& b) {
+	if( a.probability < b.probability) {
+		return true;
+	}
+	if(a.probability == b.probability) {
+		return a.position < b.position;
+	}
+	return false;
+}
 
 double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
 	const Function& function, const string& functionName, const int sample);
@@ -58,12 +77,16 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	double averageSelectedChromosomes = 0;
 	double averagePopulationSize = 0;
 
-	const double chanceToMutate = 0.3 / nodeLength;
-	constexpr double chanceToCrossOver = 0.75;
+	//Params
+	double chanceToMutate = 1.5;
+	constexpr double chanceToCrossOver = 0.8;
+	//Very rough estimate
+	constexpr int averageChromosomesToBeSelected = 120;
+	
+
+	chanceToMutate /= (nodeLength * dimensions);
 	double bestResult = DBL_MAX;
 
-	//Very rough estimate
-	constexpr int averageChromosomesToBeSelected = 100;
 
 	while (t < maxGenerations) {
 		t++;
@@ -85,42 +108,58 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 		}
 		//cout << "TotalFitness " << totalFitness << '\n';
 		generationsSinceLastImprovement++;
-	/*	if (generationsSinceLastImprovement > 300) {
+		if (generationsSinceLastImprovement > 250) {
 			break;
-		}*/
+		}
 
 		vector<vector<bool>> selectedChromosomes;
-		vector<double> p(populationSize), q(populationSize + 1, 0);
+		vector<prob> p(populationSize);
+		vector<double> q(populationSize + 1, 0);
 
-		vector<double> rVector(averageChromosomesToBeSelected);
+		deque<double> rVector;
 
-		for (int i = 0; i < rVector.size(); i++) {
-			rVector[i] = random01(gen);
+		for (int i = 0; i < averageChromosomesToBeSelected; i++) {
+			rVector.push_front(random01(gen));
 		}
 
 		//Individual sel.prob. + Accumulated sel.prob.
 		for (unsigned i = 0; i < populationSize; i++) {
-			p[i] = eval[i] / totalFitness;
-			q[i + 1] = q[i] + p[i];
-			//cout << "p[" << i << "]: " << p[i] << " q[" << i << "] " << q[i] << ' ';
+			p[i].probability = eval[i] / totalFitness;
+			p[i].position = i;
+		}
 
-			for (int j = 0; j < rVector.size(); j++) {
-				if (q[i] < rVector[j] && rVector[j] <= q[i + 1]) {
-					//cout << "Selected " << " for cross-over";
-					selectedChromosomes.push_back(startingPopulation[i]);
-					rVector.erase(rVector.begin() + j);
-					averageSelectedChromosomes++;
+		sort(p.begin(), p.end(),probComparison );
+		sort(rVector.begin(), rVector.end());
+		bool finishedRandoms = false;
+		for(unsigned i = 0;i<populationSize;i++) {
+			if (finishedRandoms)
+				break;
+
+			q[i + 1] = q[i] + p[i].probability;
+			if (q[i] < rVector[0] && rVector[0] <= q[i + 1]) {
+				selectedChromosomes.push_back(startingPopulation[p[i].position]);
+				rVector.pop_front();
+				if (rVector.empty() == true)
 					break;
+				while (rVector[0] < q[i + 1]) {
+					rVector.pop_front();
+					if (rVector.empty() == true) {
+						finishedRandoms = true;
+						break;
+					}
 				}
+				
+				averageSelectedChromosomes++;
 			}
-			//cout << '\n';
 		}
 
 		//Generate new population
 		unsigned chromosomesAdded = 0;
 
+		//Kill-switch
 		if (selectedChromosomes.empty() == true || selectedChromosomes.size() == 1) {
 			t--;
+			cout << "Selected none or 1";
 			continue;
 		}
 
