@@ -162,20 +162,20 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 		for (unsigned i = 0; i < chromosomesToBeAdded.size() - 5;i++) {
 			selectedChromosomes.push_back(startingPopulation[chromosomesToBeAdded[i]]);
 		}
-		//Elitism
-		for(unsigned i =populationSize -5;i<populationSize;i++) {
-			bool ok = true;
-			for(unsigned j = chromosomesToBeAdded.size() - 5;j<chromosomesToBeAdded.size();j++) {
-				if (p[i].position == chromosomesToBeAdded[j]) {
-					ok = false;
-					break;
-				}
-			}
-			if (ok) {
-				selectedChromosomes.push_back(startingPopulation[p[i].position]);
-				chromosomesAdded++;
-			}
-		}
+		////Elitism
+		//for(unsigned i =populationSize -5;i<populationSize;i++) {
+		//	bool ok = true;
+		//	for(unsigned j = chromosomesToBeAdded.size() - 5;j<chromosomesToBeAdded.size();j++) {
+		//		if (p[i].position == chromosomesToBeAdded[j]) {
+		//			ok = false;
+		//			break;
+		//		}
+		//	}
+		//	if (ok) {
+		//		selectedChromosomes.push_back(startingPopulation[p[i].position]);
+		//		chromosomesAdded++;
+		//	}
+		//}
 
 		//Kill-switch
 		/*if (selectedChromosomes.empty() == true || selectedChromosomes.size() == 1) {
