@@ -35,7 +35,8 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 
 void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
 	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength);
-void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, mt19937& gen);
+void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& floatDistribution, uniform_int_distribution
+            <>& intDistribution, mt19937& gen);
 
 
 double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
@@ -52,6 +53,7 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 
 	uniform_real_distribution<double> random01(0, 1.0);
 	uniform_int_distribution<> randomGenerator(0, dimensions);
+	uniform_int_distribution<> randomGenerator2(0, dimensions * nodeLength - 1);
 	uniform_int_distribution<> randomBool(0, 1);
 
 
@@ -78,13 +80,12 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	double averagePopulationSize = 0;
 
 	//Params
-	double chanceToMutate = 1.5;
-	constexpr double chanceToCrossOver = 0.8;
-	//Very rough estimate
-	constexpr int averageChromosomesToBeSelected = 120;
+	double chanceToMutate = 0.1;
+	double chanceToCrossOver = 0.8;
+	int averageChromosomesToBeSelected = 120; //Very Rough estimate
 	
 
-	chanceToMutate /= (nodeLength * dimensions);
+	//chanceToMutate /= (nodeLength * dimensions);
 	double bestResult = DBL_MAX;
 
 
@@ -113,6 +114,7 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 		}
 
 		vector<vector<bool>> selectedChromosomes;
+		vector<unsigned> chromosomesToBeAdded;
 		vector<prob> p(populationSize);
 		vector<double> q(populationSize + 1, 0);
 
@@ -137,7 +139,8 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 
 			q[i + 1] = q[i] + p[i].probability;
 			if (q[i] < rVector[0] && rVector[0] <= q[i + 1]) {
-				selectedChromosomes.push_back(startingPopulation[p[i].position]);
+				//selectedChromosomes.push_back(startingPopulation[p[i].position]);
+				chromosomesToBeAdded.push_back(p[i].position);
 				rVector.pop_front();
 				if (rVector.empty() == true)
 					break;
@@ -155,28 +158,44 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 
 		//Generate new population
 		unsigned chromosomesAdded = 0;
+		
+		for (unsigned i = 0; i < chromosomesToBeAdded.size() - 5;i++) {
+			selectedChromosomes.push_back(startingPopulation[chromosomesToBeAdded[i]]);
+		}
+		//Elitism
+		for(unsigned i =populationSize -5;i<populationSize;i++) {
+			bool ok = true;
+			for(unsigned j = chromosomesToBeAdded.size() - 5;j<chromosomesToBeAdded.size();j++) {
+				if (p[i].position == chromosomesToBeAdded[j]) {
+					ok = false;
+					break;
+				}
+			}
+			if (ok) {
+				selectedChromosomes.push_back(startingPopulation[p[i].position]);
+				chromosomesAdded++;
+			}
+		}
 
 		//Kill-switch
-		if (selectedChromosomes.empty() == true || selectedChromosomes.size() == 1) {
+		/*if (selectedChromosomes.empty() == true || selectedChromosomes.size() == 1) {
 			t--;
 			cout << "Selected none or 1";
 			continue;
-		}
-
+		}*/
 		startingPopulation.clear();
-		const unsigned numberOfSelectedChromosomes = selectedChromosomes.size();
-
-		for (unsigned i = 0; i < numberOfSelectedChromosomes; i++) {
+		for (unsigned i = 0; i < selectedChromosomes.size(); i++) {
 			startingPopulation.push_back(selectedChromosomes[i]);
 			chromosomesAdded++;
 		}
-
+		//Cross-Over/Mutate
+		const unsigned numberOfSelectedChromosomes = selectedChromosomes.size();
 		for (unsigned i = 0; i < numberOfSelectedChromosomes - numberOfSelectedChromosomes % 2 - 1; i += 2) {
 			if (random01(gen) < chanceToCrossOver) {
 				crossOver(startingPopulation, selectedChromosomes[i],
 					selectedChromosomes[i + 1], randomGenerator, gen, nodeLength);
-				mutate(startingPopulation[chromosomesAdded], chanceToMutate, random01, gen);
-				mutate(startingPopulation[chromosomesAdded + 1], chanceToMutate, random01, gen);
+				mutate(startingPopulation[chromosomesAdded], chanceToMutate, random01,randomGenerator2, gen);
+				mutate(startingPopulation[chromosomesAdded + 1], chanceToMutate, random01,randomGenerator2, gen);
 				chromosomesAdded += 2;
 			}
 
@@ -223,9 +242,12 @@ void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chr
 
 }
 
-void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, mt19937& gen) {
-	for (auto var : chromosome) {
-		if (distribution(gen) < chanceToMutate)
-			var = !var;
+void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& floatDistribution, uniform_int_distribution
+            <>& intDistribution, mt19937& gen) {
+
+	while(floatDistribution(gen) < chanceToMutate) {
+		const int random = intDistribution(gen);
+		chromosome[random] =!random;
 	}
+	
 }
