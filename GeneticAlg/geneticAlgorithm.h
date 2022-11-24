@@ -21,10 +21,10 @@ struct prob
 };
 
 bool probComparison(const prob& a, const prob& b) {
-	if( a.probability < b.probability) {
+	if (a.probability < b.probability) {
 		return true;
 	}
-	if(a.probability == b.probability) {
+	if (a.probability == b.probability) {
 		return a.position < b.position;
 	}
 	return false;
@@ -33,10 +33,10 @@ bool probComparison(const prob& a, const prob& b) {
 double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
 	const Function& function, const string& functionName, const int sample);
 
-void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
-	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength);
-void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& floatDistribution, uniform_int_distribution
-            <>& intDistribution, mt19937& gen);
+void crossOver(vector<vector<bool>>& startingPopulation, vector<bool>& chromosome1, vector<bool>& chromosome2,
+               uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength);
+void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, uniform_int_distribution
+            <>& distribution2, mt19937& gen);
 
 
 double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
@@ -53,7 +53,7 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 
 	uniform_real_distribution<double> random01(0, 1.0);
 	uniform_int_distribution<> randomGenerator(0, dimensions);
-	uniform_int_distribution<> randomGenerator2(0, dimensions * nodeLength - 1);
+	uniform_int_distribution<> randomGenerator2(0, nodeLength * dimensions - 1);
 	uniform_int_distribution<> randomBool(0, 1);
 
 
@@ -71,7 +71,7 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 		//cout << "Debug: "; printVector(startingPopulation[i]); cout << '\n';
 	}
 
-	vector<double> eval(populationSize), results(populationSize);
+	vector<double> eval, results;
 
 	//Count Variables
 	unsigned t = 0;
@@ -80,12 +80,14 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	double averagePopulationSize = 0;
 
 	//Params
-	double chanceToMutate = 0.1;
+	double chanceToMutate = 1.0;
 	double chanceToCrossOver = 0.8;
-	int averageChromosomesToBeSelected = 120; //Very Rough estimate
-	
+	//Very rough estimate
+	int averageChromosomesToBeSelected = 100;
+	unsigned numberOfElites = 5;
 
-	//chanceToMutate /= (nodeLength * dimensions);
+
+	chanceToMutate /= (nodeLength * dimensions);
 	double bestResult = DBL_MAX;
 
 
@@ -97,6 +99,10 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 		populationSize = startingPopulation.size();
 		averagePopulationSize += populationSize;
 
+		eval.resize(populationSize);
+		results.resize(populationSize);
+
+		//Evaluate
 		for (unsigned i = 0; i < populationSize; i++) {
 			results[i] = evaluate(startingPopulation[i], nodeLength, function, a, average);
 			if (results[i] < bestResult) {
@@ -105,77 +111,91 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 			}
 			eval[i] = function.fitFunc(results[i], dimensions);
 			totalFitness += eval[i];
-			//cout <<"results["<<results[i]<<"] "<< "eval[" << i << "] " << eval[i] << ' ';
 		}
-		//cout << "TotalFitness " << totalFitness << '\n';
+
+		//Shorter version
 		generationsSinceLastImprovement++;
 		if (generationsSinceLastImprovement > 250) {
 			break;
 		}
 
-		vector<vector<bool>> selectedChromosomes;
-		vector<unsigned> chromosomesToBeAdded;
+		vector<vector<bool>> selectedChromosomes(averageChromosomesToBeSelected);
 		vector<prob> p(populationSize);
 		vector<double> q(populationSize + 1, 0);
 
-		deque<double> rVector;
-
+		//Generate random numbers for wheel-of-fortune
+		deque<prob> rVector;
 		for (int i = 0; i < averageChromosomesToBeSelected; i++) {
-			rVector.push_front(random01(gen));
+			prob temp;
+			temp.probability = random01(gen);
+			temp.position = i;
+			rVector.push_front(temp);
 		}
 
-		//Individual sel.prob. + Accumulated sel.prob.
+		//Individual sel.prob.
 		for (unsigned i = 0; i < populationSize; i++) {
 			p[i].probability = eval[i] / totalFitness;
 			p[i].position = i;
 		}
 
-		sort(p.begin(), p.end(),probComparison );
-		sort(rVector.begin(), rVector.end());
+		sort(p.begin(), p.end(), probComparison);
+		sort(rVector.begin(), rVector.end(), probComparison);
 		bool finishedRandoms = false;
-		for(unsigned i = 0;i<populationSize;i++) {
+		for (unsigned i = 0; i < populationSize - numberOfElites; i++) {
 			if (finishedRandoms)
 				break;
 
 			q[i + 1] = q[i] + p[i].probability;
-			if (q[i] < rVector[0] && rVector[0] <= q[i + 1]) {
-				//selectedChromosomes.push_back(startingPopulation[p[i].position]);
-				chromosomesToBeAdded.push_back(p[i].position);
+			if (q[i] < rVector[0].probability && rVector[0].probability <= q[i + 1]) {
+				selectedChromosomes[rVector[0].position] = startingPopulation[p[i].position];
 				rVector.pop_front();
-				if (rVector.empty() == true)
+				if (rVector.empty() == true) {
+					finishedRandoms = true;
 					break;
-				while (rVector[0] < q[i + 1]) {
+				}
+				while (rVector[0].probability <= q[i + 1]) {
+					selectedChromosomes[rVector[0].position] = startingPopulation[p[i].position];
 					rVector.pop_front();
 					if (rVector.empty() == true) {
 						finishedRandoms = true;
 						break;
 					}
 				}
-				
-				averageSelectedChromosomes++;
+
+				//averageSelectedChromosomes++;
+			}
+		}
+
+		vector<vector<bool>> elites;
+		for (unsigned i = populationSize - numberOfElites; i < populationSize ; i++) {
+			if (finishedRandoms) {
+				elites.push_back(startingPopulation[p[i].position]);
+				continue;
+			}
+			q[i + 1] = q[i] + p[i].probability;
+			if (q[i] < rVector[0].probability && rVector[0].probability <= q[i + 1]) {
+				selectedChromosomes[rVector[0].position] = startingPopulation[p[i].position];
+				rVector.pop_front();
+				if (rVector.empty() == true) {
+					finishedRandoms = true;
+					continue;
+				}
+				while (rVector[0].probability <= q[i + 1]) {
+					selectedChromosomes[rVector[0].position] = startingPopulation[p[i].position];
+					rVector.pop_front();
+					if (rVector.empty() == true) {
+						finishedRandoms = true;
+						break;
+					}
+				}
+			}
+			else {
+				elites.push_back(startingPopulation[p[i].position]);
 			}
 		}
 
 		//Generate new population
 		unsigned chromosomesAdded = 0;
-		
-		for (unsigned i = 0; i < chromosomesToBeAdded.size() - 5;i++) {
-			selectedChromosomes.push_back(startingPopulation[chromosomesToBeAdded[i]]);
-		}
-		////Elitism
-		//for(unsigned i =populationSize -5;i<populationSize;i++) {
-		//	bool ok = true;
-		//	for(unsigned j = chromosomesToBeAdded.size() - 5;j<chromosomesToBeAdded.size();j++) {
-		//		if (p[i].position == chromosomesToBeAdded[j]) {
-		//			ok = false;
-		//			break;
-		//		}
-		//	}
-		//	if (ok) {
-		//		selectedChromosomes.push_back(startingPopulation[p[i].position]);
-		//		chromosomesAdded++;
-		//	}
-		//}
 
 		//Kill-switch
 		/*if (selectedChromosomes.empty() == true || selectedChromosomes.size() == 1) {
@@ -183,26 +203,26 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 			cout << "Selected none or 1";
 			continue;
 		}*/
+
 		startingPopulation.clear();
-		for (unsigned i = 0; i < selectedChromosomes.size(); i++) {
+		const unsigned numberOfSelectedChromosomes = selectedChromosomes.size();
+
+		/*for (unsigned i = 0; i < numberOfSelectedChromosomes; i++) {
 			startingPopulation.push_back(selectedChromosomes[i]);
 			chromosomesAdded++;
-		}
-		//Cross-Over/Mutate
-		const unsigned numberOfSelectedChromosomes = selectedChromosomes.size();
+		}*/
+		startingPopulation = selectedChromosomes;
 		for (unsigned i = 0; i < numberOfSelectedChromosomes - numberOfSelectedChromosomes % 2 - 1; i += 2) {
 			if (random01(gen) < chanceToCrossOver) {
 				crossOver(startingPopulation, selectedChromosomes[i],
-					selectedChromosomes[i + 1], randomGenerator, gen, nodeLength);
+				          selectedChromosomes[i + 1], randomGenerator, gen, nodeLength);
 				mutate(startingPopulation[chromosomesAdded], chanceToMutate, random01,randomGenerator2, gen);
 				mutate(startingPopulation[chromosomesAdded + 1], chanceToMutate, random01,randomGenerator2, gen);
 				chromosomesAdded += 2;
 			}
-
 		}
 
-
-		//cout << "\nBest Result: " <<fixed<<setprecision(5)<< bestResult<<'\n';
+		startingPopulation.insert(startingPopulation.begin(), elites.begin(), elites.end());
 
 	}
 
@@ -223,11 +243,11 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	return bestResult;
 }
 
-void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chromosome1, const vector<bool>& chromosome2,
-	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength) {
+void crossOver(vector<vector<bool>>& startingPopulation, vector<bool>& chromosome1, vector<bool>& chromosome2,
+               uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength) {
 
 	const unsigned cutPoint = distribution(gen) * nodeLength;
-	vector<bool> newChromosome1, newChromosome2;
+	/*vector<bool> newChromosome1, newChromosome2;
 
 	for (unsigned i = 0; i < cutPoint; i++) {
 		newChromosome1.push_back(chromosome1[i]);
@@ -238,16 +258,29 @@ void crossOver(vector<vector<bool>>& startingPopulation, const vector<bool>& chr
 		newChromosome2.push_back(chromosome1[i]);
 	}
 	startingPopulation.push_back(newChromosome1);
-	startingPopulation.push_back(newChromosome2);
+	startingPopulation.push_back(newChromosome2);*/
+
+	swap_ranges(chromosome1.begin(), chromosome1.begin() + cutPoint, chromosome2.begin());
+	startingPopulation.push_back(chromosome1);
+	startingPopulation.push_back(chromosome2);
 
 }
 
-void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& floatDistribution, uniform_int_distribution
-            <>& intDistribution, mt19937& gen) {
+void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real_distribution<double>& distribution, uniform_int_distribution
+            <>& distribution2, mt19937& gen) {
+	//unsigned averageMutated = 0;
 
-	while(floatDistribution(gen) < chanceToMutate) {
-		const int random = intDistribution(gen);
-		chromosome[random] =!random;
+	for (auto var : chromosome) {
+		if (distribution(gen) < chanceToMutate) {
+			var = !var;
+			//averageMutated++;
+		}
 	}
-	
+
+	/*while(distribution(gen) < chanceToMutate) {
+		const int point = distribution2(gen);
+		chromosome[point] = !chromosome[point];
+		averageMutated++;
+	}
+	cout << "average mutated: " << averageMutated << '\n';*/
 }

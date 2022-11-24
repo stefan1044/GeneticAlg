@@ -30,7 +30,7 @@ void prelucrare() {
 			double averagePopulationSizeTotal = 0;
 			double endgenTotal = 0;
 
-			std::ofstream fout("aa_" + tip);
+			std::ofstream fout("aa_" + tip + ".out");
 
 			for (int i = 1; i <= 30; i++)
 			{
