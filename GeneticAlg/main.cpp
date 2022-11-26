@@ -22,27 +22,27 @@ int main() {
 
 			double averageTotal = 0;
 			for (int i = 1; i <= 30; i++) {
-				averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, deJong, "deJong", i);
+				averageTotal += runAlgorithm(d, schwefel, "deJong", i);
 			}
 			cout << "Average: " << averageTotal / 30 << '\n' << '\n';
 
-			averageTotal = 0;
-			for (int i = 1; i <= 30; i++) {
-				averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, schwefel, "Schwefel", i);
-			}
-			cout << "Average: " << averageTotal / 30 << '\n' << '\n';
-
-			averageTotal = 0;
-			for (int i = 1; i <= 30; i++) {
-				averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, rastrigin, "Rastrigin", i);
-			}
-			cout << "Average: " << averageTotal / 30 << '\n' << '\n';
-
-			averageTotal = 0;
-			for (int i = 1; i <= 30; i++) {
-				averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, michalewicz, "Michalewicz", i);
-			}
-			cout << "Average: " << averageTotal / 30 << '\n' << '\n';
+			//averageTotal = 0;
+			//for (int i = 1; i <= 30; i++) {
+			//	averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, schwefel, "Schwefel", i);
+			//}
+			//cout << "Average: " << averageTotal / 30 << '\n' << '\n';
+			//
+			//averageTotal = 0;
+			//for (int i = 1; i <= 30; i++) {
+			//	averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, rastrigin, "Rastrigin", i);
+			//}
+			//cout << "Average: " << averageTotal / 30 << '\n' << '\n';
+			//
+			//averageTotal = 0;
+			//for (int i = 1; i <= 30; i++) {
+			//	averageTotal += runAlgorithm(maxGenerations, startingPopulationSize, d, michalewicz, "Michalewicz", i);
+			//}
+			//cout << "Average: " << averageTotal / 30 << '\n' << '\n';
 		}
 
 	
