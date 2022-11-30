@@ -32,10 +32,10 @@ bool probComparison(const Prob& a, const Prob& b) {
 
 struct ModParams
 {
-	double chanceToMutate = 0.6; //		(0,1)		https://www.mathsisfun.com/numbers/sigma-calculator.html 1 to 10000 (chance)^n
-	double chanceToCrossOver = 0.7;	//	(0.1,1]
+	double chanceToMutate = 0.75; //		(0,1)		https://www.mathsisfun.com/numbers/sigma-calculator.html 1 to 10000 (chance)^n
+	double chanceToCrossOver = 0.9;	//	(0.1,1]
 	int averageChromosomesToBeSelected = 100;//		[5,100] :avgCTBS + avgCTBS*crossOverChance + Elites <=205
-	unsigned numberOfElites = 5;	//  [0,100]
+	unsigned numberOfElites = 7;	//  [0,100]
 };
 
 struct NonModParams
@@ -49,7 +49,7 @@ struct NonModParams
 };
 
 double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
-	const Function& function, const string& functionName, const int sample);
+                    const Function& function, const string& functionName, const int sample, const ModParams& parameters);
 
 void crossOver(vector<vector<bool>>& startingPopulation, vector<bool>& chromosome1, vector<bool>& chromosome2,
 	uniform_int_distribution<>& distribution, mt19937& gen, const unsigned& nodeLength);
@@ -58,10 +58,11 @@ void mutate(vector<bool>& chromosome, const double& chanceToMutate, uniform_real
 
 //unsigned averageMutated = 0;
 //unsigned mutatedIndividuals = 0;
+//unsigned genFoundBest = 0;
 
 
 double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSize, const unsigned dimensions,
-	const Function& function, const string& functionName, const int sample) {
+                    const Function& function, const string& functionName, const int sample, const ModParams& parameters) {
 
 	auto start = chrono::system_clock::now();
 
@@ -100,11 +101,10 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	double averagePopulationSize = 0;
 
 	//ModParams
-	double chanceToMutate = 0.6; // https://www.mathsisfun.com/numbers/sigma-calculator.html 1 to 10000 (1/chance)^n
-	double chanceToCrossOver = 0.7;
-	//Very rough estimate
-	int averageChromosomesToBeSelected = 100;
-	unsigned numberOfElites = 5;
+	double chanceToMutate = parameters.chanceToMutate; // https://www.mathsisfun.com/numbers/sigma-calculator.html 1 to 10000 (1/chance)^n
+	double chanceToCrossOver = parameters.chanceToCrossOver;
+	int averageChromosomesToBeSelected = parameters.averageChromosomesToBeSelected;
+	unsigned numberOfElites = parameters.numberOfElites;
 
 
 	//chanceToMutate /= (nodeLength * dimensions);
@@ -112,6 +112,7 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	//double temperature = 1;
 	//double coolingConstant = 0.9999;
 
+	vector<bool> bestChromosome;
 
 	while (t < maxGenerations) {
 		t++;
@@ -129,6 +130,7 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 			if (results[i] < bestResult) {
 				bestResult = results[i];
 				generationsSinceLastImprovement = 0;
+				bestChromosome = startingPopulation[i];
 			}
 			eval[i] = function.fitFunc(results[i], dimensions);
 			totalFitness += eval[i];
@@ -253,39 +255,29 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 
 	//Hill-Climbing
 
-	int bestIndex = 0;
-	for (unsigned i = 0; i < startingPopulation.size(); i++) {
-		results[i] = evaluate(startingPopulation[i], nodeLength, function, a, average);
-		if (results[i] < bestResult) {
-			bestIndex = i;
-			bestResult = results[i];
-			//generationsSinceLastImprovement = 0;
-		}
-		//eval[i] = function.fitFunc(results[i], dimensions);
-	}
 	double current = bestResult;
 
 	bool local = false;
 	do
 	{
-		double minim = 1e9;
+		double minim = DBL_MAX;
 		vector<bool> bitsminim;
-		for (int i = 0; i < L; i++)
+		for (unsigned i = 0; i < L; i++)
 		{
-			startingPopulation[bestIndex][i] = !startingPopulation[bestIndex][i];
-			double aux = evaluate(startingPopulation[bestIndex], nodeLength, function, a, average);
+			bestChromosome[i] = !bestChromosome[i];
+			double aux = evaluate(bestChromosome, nodeLength, function, a, average);
 			if (aux < current && aux < minim)
 			{
 				minim = aux;
-				bitsminim = startingPopulation[bestIndex];
+				bitsminim = bestChromosome;
 			}
-			startingPopulation[bestIndex][i] = !startingPopulation[bestIndex][i];
+			bestChromosome[i] = !bestChromosome[i];
 		}
-		if (minim == 1e9)
+		if (minim == DBL_MAX)
 			local = true;
 		else
 		{
-			startingPopulation[bestIndex] = bitsminim;
+			bestChromosome = bitsminim;
 			current = minim;
 		}
 	} while (!local);
@@ -296,19 +288,22 @@ double runAlgorithm(const unsigned maxGenerations, unsigned startingPopulationSi
 	auto end = chrono::system_clock::now();
 	auto duration = chrono::duration_cast<chrono::milliseconds>(end - start).count();
 
-	string path = functionName + "_" + to_string(dimensions) + '_' + to_string(sample);
-	ofstream fout(path);
+	/*string path = functionName + "_" + to_string(dimensions) + '_' + to_string(sample);
+	ofstream fout(path);*/
 
-	cout << path << '\n';
+	//cout << path << '\n';
 
-	fout << /*"Best Result: " << */fixed << setprecision(5) << bestResult << '\n';
-	fout << /*"Average Selected " << */averageSelectedChromosomes / t << '\n';
-	fout << averagePopulationSize / t << '\n';
-	fout << /*"Ended at generation: " << */t << "\n";
-	fout << /*"Duration: " << */duration << '\n';
+	//fout << /*"Best Result: " << */fixed << setprecision(5) << bestResult << '\n';
+	//fout << /*"Average Selected " << */averageSelectedChromosomes / t << '\n';
+	//fout << averagePopulationSize / t << '\n';
+	//fout << /*"Ended at generation: " << */t << "\n";
+	//fout << /*"Duration: " << */duration << '\n';
+
+
 	/*cout << "Average mutations per individual: " << (double)averageMutated / (double)mutatedIndividuals << '\n';
 	averageMutated = 0;
 	mutatedIndividuals = 0;*/
+	//cout << "Gen found best: " << genFoundBest << "\n";
 
 	return bestResult;
 }

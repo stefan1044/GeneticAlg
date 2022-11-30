@@ -35,5 +35,8 @@
     <ClInclude Include="prelucrare.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="metaAlg.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
